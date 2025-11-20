@@ -6,3 +6,9 @@ channels==4.0.0
 channels-redis==4.2.0
 Pillow==10.0.1 --only-binary :all:
 uvicorn==0.25.0
+daphne==4.0.0
+gunicorn==21.2.0
+whitenoise==6.5.0
+dj-database-url==1.0.0
+psycopg2-binary==2.9.7
+python-dotenv==1.0.0
