@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # ==========================
 # BASE DIR
