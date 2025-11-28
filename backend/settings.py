@@ -74,6 +74,20 @@ WSGI_APPLICATION = "backend.wsgi.application"
 ASGI_APPLICATION = "backend.asgi.application"
 
 # ==========================
+# FILE STORAGE
+# ==========================
+if DEBUG:
+    # Local storage for development
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+else:
+    # Cloudinary storage for production
+    DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+    MEDIA_URL = None
+    MEDIA_ROOT = None
+
+# ==========================
 # TEMPLATES
 # ==========================
 TEMPLATES = [
@@ -221,7 +235,7 @@ CLOUDINARY_STORAGE = {
 }
 
 
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
 
 # ==========================
 # DEFAULT AUTO FIELD

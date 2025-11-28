@@ -1,4 +1,6 @@
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from .views import CustomTokenObtainPairView
 from .views import CheckAuthenticatedView, ReturnRole,LogoutView,ReturnUser,ChangePasswordView
 from .views import ProfileView, CreateUserWithProfileView
@@ -123,4 +125,4 @@ urlpatterns = [
     
     # WebSocket token endpoint
     path('websocket-token/', WebSocketTokenView.as_view(), name='websocket_token'),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
