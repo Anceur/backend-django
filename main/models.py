@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from cloudinary.models import CloudinaryField
 # Create your models here.
 class CustomUser(AbstractUser):
     roles = models.CharField(
@@ -16,7 +17,7 @@ class CustomUser(AbstractUser):
         super().save(*args, **kwargs)
 class Profile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='profiles/', null=True, blank=True)
+    image = CloudinaryField('image', folder='profiles/', null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=200, blank=True)
 
@@ -35,7 +36,7 @@ class MenuItem(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=6, decimal_places=2)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    image = models.ImageField(upload_to='menu_items/', blank=True, null=True)
+    image = CloudinaryField('image', folder='menu_items/', blank=True, null=True)
     featured = models.BooleanField(default=False)
 
     def __str__(self):

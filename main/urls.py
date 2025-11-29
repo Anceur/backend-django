@@ -1,11 +1,9 @@
 from django.urls import path
-from django.conf import settings
-from django.conf.urls.static import static
 from .views import CustomTokenObtainPairView
 from .views import CheckAuthenticatedView, ReturnRole,LogoutView,ReturnUser,ChangePasswordView
 from .views import ProfileView, CreateUserWithProfileView
 from .views import (
-    OrderListCreateView, OrderDetailView, OrderStatusCountView, PublicOrderCreateView,
+    OrderListCreateView, OrderDetailView, OrderStatusCountView, PublicOrderCreateView, SecurityTokenView,
     OfflineOrderCreateView, OfflineOrderListView, OfflineOrderDetailView, OfflineOrderAdminListView,
     TableListCreateView, TableDetailView, PublicTableValidateView, DashboardStatsView, AnalyticsView, CustomersListView,
     TableSessionGenerateView, TableSessionValidateView, TableSessionListView, TableSessionDetailView,
@@ -50,6 +48,7 @@ urlpatterns = [
     # Order endpoints
     path('orders/', OrderListCreateView.as_view(), name='order_list_create'),
     path('orders/public/', PublicOrderCreateView.as_view(), name='public_order_create'),
+    path('orders/security-token/', SecurityTokenView.as_view(), name='security_token'),
     path('orders/status-counts/', OrderStatusCountView.as_view(), name='order_status_counts'),
     path('orders/<int:order_id>/', OrderDetailView.as_view(), name='order_detail'),
     
@@ -125,4 +124,4 @@ urlpatterns = [
     
     # WebSocket token endpoint
     path('websocket-token/', WebSocketTokenView.as_view(), name='websocket_token'),
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]

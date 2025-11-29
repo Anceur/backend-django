@@ -21,6 +21,7 @@ from .models import (
 )
 from django.db.models import Q, Count, Sum, Avg, F, DecimalField, Max, Min
 from django.db.models.functions import TruncDate, TruncHour
+from django.db import transaction
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.core.cache import cache
@@ -30,6 +31,7 @@ import secrets
 import hashlib
 import logging
 from .notification_utils import notify_order_confirmed_by_cashier
+from .security import OrderSecurityValidator
 
 logger = logging.getLogger(__name__)
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -543,6 +545,41 @@ class OrderStatusCountView(APIView):
                 'detail': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class SecurityTokenView(APIView):
+    """Generate security token for order submission (Public endpoint)"""
+    permission_classes = [AllowAny]
+    
+    def get_authenticators(self):
+        """Disable authentication for token generation"""
+        return []
+    
+    def get(self, request):
+        """Generate a security token for order submission"""
+        try:
+            token = OrderSecurityValidator.generate_security_token()
+            logger.info(f"Security token generated successfully for IP: {OrderSecurityValidator.get_client_ip(request)}")
+            return Response({
+                'success': True,
+                'security_token': token
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error generating security token: {e}", exc_info=True)
+            import traceback
+            traceback.print_exc()
+            return Response({
+                'error': 'Failed to generate security token',
+                'detail': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def options(self, request, *args, **kwargs):
+        """Handle CORS preflight requests"""
+        response = Response(status=status.HTTP_200_OK)
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+
 class PublicOrderCreateView(APIView):
     """Public endpoint for creating orders (no authentication required)"""
     permission_classes = [AllowAny]
@@ -552,10 +589,35 @@ class PublicOrderCreateView(APIView):
         return []  # No authentication required
     
     def post(self, request):
-        """Create a new order from client side"""
+        """Create a new order from client side with strong security validation"""
         try:
-            # Prepare order data
+            # Prepare order data first (exclude security token from order data)
             order_data = request.data.copy()
+            security_token_data = order_data.pop('security_token', {})  # Extract and remove security token from order data
+            
+            # If security token is provided, validate it; otherwise, apply basic rate limiting only
+            if security_token_data:
+                # STRONG SECURITY VALIDATION - Prevent bots and attacks
+                is_valid, error_message, error_details = OrderSecurityValidator.validate_order_submission(
+                    request, order_data, security_token_data
+                )
+                
+                if not is_valid:
+                    logger.warning(f"Order submission blocked: {error_message}, IP: {OrderSecurityValidator.get_client_ip(request)}")
+                    return Response({
+                        'error': error_message or 'Security validation failed',
+                        'details': error_details or 'Your order submission was blocked by security filters. Please try again.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            else:
+                # Basic rate limiting without full security token validation
+                ip_address = OrderSecurityValidator.get_client_ip(request)
+                is_allowed, remaining, reset_time = OrderSecurityValidator.check_rate_limit(ip_address, max_requests=10, window_seconds=60)
+                if not is_allowed:
+                    logger.warning(f"Order submission rate limited (no token): IP: {ip_address}")
+                    return Response({
+                        'error': 'Rate limit exceeded',
+                        'details': 'Too many order attempts. Please wait before trying again.'
+                    }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             # Store original items data BEFORE converting to strings (needed for OrderItem creation)
             original_items_data = request.data.get('items', [])
@@ -1068,7 +1130,21 @@ class MenuItemListCreateView(APIView):
         try:
             serializer = MenuItemSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
-                menu_item = serializer.save()
+                with transaction.atomic():
+                    menu_item = serializer.save()
+                    
+                    # Automatically create default "M" size if no sizes exist for this item
+                    existing_sizes = MenuItemSize.objects.filter(menu_item=menu_item)
+                    if not existing_sizes.exists():
+                        default_size = MenuItemSize.objects.create(
+                            menu_item=menu_item,
+                            size='M',
+                            price=menu_item.price
+                        )
+                        logger.info(f"✅ Auto-created default 'M' size (ID: {default_size.id}, price: {default_size.price}) for menu item: {menu_item.name} (ID: {menu_item.id}, price: {menu_item.price})")
+                    else:
+                        logger.info(f"ℹ️ Menu item {menu_item.name} already has {existing_sizes.count()} size(s), skipping auto-creation")
+                
                 return Response(
                     MenuItemSerializer(menu_item, context={'request': request}).data,
                     status=status.HTTP_201_CREATED
@@ -1078,6 +1154,9 @@ class MenuItemListCreateView(APIView):
                 'details': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logger.error(f"❌ Error creating menu item: {e}", exc_info=True)
             return Response({
                 'error': 'Failed to create menu item',
                 'detail': str(e)

@@ -267,11 +267,24 @@ class MenuItemSerializer(serializers.ModelSerializer):
         # Convert image field to absolute URL if it exists
         if instance.image:
             request = self.context.get('request')
+            image_url = instance.image.url
+            
+            # Build absolute URL
             if request:
-                representation['image'] = request.build_absolute_uri(instance.image.url)
+                # Use request to build absolute URL
+                if image_url.startswith('http://') or image_url.startswith('https://'):
+                    representation['image'] = image_url
+                else:
+                    # Get the scheme and host from request
+                    scheme = request.scheme  # http or https
+                    host = request.get_host()  # localhost:8000 or domain.com
+                    representation['image'] = f"{scheme}://{host}{image_url}"
             else:
-                # Fallback if no request context (shouldn't happen in API views)
-                representation['image'] = instance.image.url
+                # Fallback: use localhost:8000 for development
+                if not image_url.startswith('http'):
+                    representation['image'] = f"http://localhost:8000{image_url}"
+                else:
+                    representation['image'] = image_url
         else:
             representation['image'] = None
         

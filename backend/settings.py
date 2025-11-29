@@ -76,16 +76,6 @@ ASGI_APPLICATION = "backend.asgi.application"
 # ==========================
 # FILE STORAGE
 # ==========================
-if DEBUG:
-    # Local storage for development
-    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
-    MEDIA_URL = "/media/"
-    MEDIA_ROOT = BASE_DIR / "media"
-else:
-    # Cloudinary storage for production
-    DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-    MEDIA_URL = None
-    MEDIA_ROOT = None
 
 # ==========================
 # TEMPLATES
@@ -112,8 +102,8 @@ TEMPLATES = [
 SESSION_COOKIE_NAME = "admin_session"
 CSRF_COOKIE_NAME = "admin_csrftoken"
 
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
 
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
@@ -218,21 +208,31 @@ CSRF_TRUSTED_ORIGINS = [
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# LOCAL Media (لن تُستعمل بعد Cloudinary)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-WHITENOISE_AUTOREFRESH = DEBUG
-WHITENOISE_MAX_AGE = 31536000
 
 # ==========================
 # CLOUDINARY SETTINGS (أضفتها فقط)
 # ==========================
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", "dn8xzjryk"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY", "911141654755575"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET", "FCdYWgHG-bQS6ISbJ0J2aSSTkJk"),
+    secure=True  # Use HTTPS
+)
+
 CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": os.environ.get("CLOUDINARY_API_KEY"),
-    "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET"),
+    "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME", "dn8xzjryk"),
+    "API_KEY": os.environ.get("CLOUDINARY_API_KEY", "911141654755575"),
+    "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET", "FCdYWgHG-bQS6ISbJ0J2aSSTkJk"),
 }
+
+
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
+# Media URL - Cloudinary handles this automatically
+# Images will be served from Cloudinary CDN with HTTPS URLs
+MEDIA_URL = "/media/"  # Fallback, but CloudinaryField returns full Cloudinary URLs
+
 
 
 
